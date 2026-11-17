@@ -1,0 +1,71 @@
+CREATE DATABASE IF NOT EXISTS skillstair;
+USE skillstair;
+
+CREATE TABLE IF NOT EXISTS users(
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100) NOT NULL, email VARCHAR(150) NOT NULL UNIQUE,
+ password_hash VARCHAR(100) NOT NULL, target_role VARCHAR(80), skill_level VARCHAR(20), weekly_hours VARCHAR(20),
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS questions(
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, role VARCHAR(80) NOT NULL, category ENUM('TECHNICAL','BEHAVIORAL') NOT NULL,
+ question_text TEXT NOT NULL, expected_concepts VARCHAR(600) NOT NULL, sample_answer TEXT NOT NULL);
+
+CREATE TABLE IF NOT EXISTS interview_sessions(
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, role VARCHAR(80), level VARCHAR(20), type VARCHAR(30),
+ question_count INT, status VARCHAR(20) DEFAULT 'IN_PROGRESS', overall_score INT NULL,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS session_questions(
+ session_id BIGINT NOT NULL, question_id BIGINT NOT NULL, `position` INT NOT NULL, PRIMARY KEY(session_id,`position`),
+ FOREIGN KEY(session_id) REFERENCES interview_sessions(id) ON DELETE CASCADE, FOREIGN KEY(question_id) REFERENCES questions(id));
+
+CREATE TABLE IF NOT EXISTS answers(
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, session_id BIGINT NOT NULL, question_id BIGINT NOT NULL, transcript TEXT NOT NULL,
+ input_method VARCHAR(10), submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(session_id,question_id),
+ FOREIGN KEY(session_id) REFERENCES interview_sessions(id) ON DELETE CASCADE, FOREIGN KEY(question_id) REFERENCES questions(id));
+
+CREATE TABLE IF NOT EXISTS answer_scores(
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, answer_id BIGINT NOT NULL UNIQUE, technical INT, relevance INT, structure INT, clarity INT,
+ strengths TEXT, improvements TEXT, missed_concepts TEXT, FOREIGN KEY(answer_id) REFERENCES answers(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS weak_topics(
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, topic VARCHAR(120) NOT NULL, frequency INT DEFAULT 1,
+ last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id,topic), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS learning_paths(
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, goal VARCHAR(80), level VARCHAR(20), weeks INT, weekly_hours VARCHAR(30),
+ focus VARCHAR(40), status VARCHAR(20) DEFAULT 'ACTIVE', adjustment_note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS learning_tasks(
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, path_id BIGINT NOT NULL, week_number INT, week_title VARCHAR(200), title VARCHAR(200),
+ description TEXT, estimated_minutes INT, resource_link VARCHAR(300), is_extra BOOLEAN DEFAULT FALSE,
+ completed BOOLEAN DEFAULT FALSE, completed_at TIMESTAMP NULL, FOREIGN KEY(path_id) REFERENCES learning_paths(id) ON DELETE CASCADE);
+
+-- Question bank. expected_concepts: comma separates concepts, | separates synonyms of one concept.
+INSERT INTO questions(role,category,question_text,expected_concepts,sample_answer) VALUES
+('Java Full Stack Developer','TECHNICAL','What are the main principles of object-oriented programming?','encapsulation,inheritance,polymorphism,abstraction','Object-oriented programming is built on four principles. Encapsulation bundles data and methods and hides internal state. Inheritance lets a class reuse behaviour from a parent class. Polymorphism lets the same method behave differently for different object types. Abstraction exposes only essential features. For example, a Shape interface can have Circle and Square implementations.'),
+('Java Full Stack Developer','TECHNICAL','What is the difference between JDBC and Hibernate? Explain when you would use each.','JDBC,ORM|object relational|object-relational,SQL,mapping,boilerplate|repetitive','JDBC is a Java API that connects applications to databases and runs SQL directly. Hibernate is an ORM framework that maps Java classes to tables and automates common persistence work, reducing repetitive SQL. JDBC gives more control over SQL, while Hibernate reduces boilerplate. The choice depends on query complexity and maintainability.'),
+('Java Full Stack Developer','TECHNICAL','Explain how a React frontend communicates with a Spring Boot backend.','REST|HTTP,JSON,fetch|axios,controller|endpoint,CORS','The React app sends HTTP requests, using fetch or axios, to REST endpoints exposed by Spring Boot controllers. Data is exchanged as JSON. Spring Boot processes the request, talks to the database and returns a response. CORS must be configured, or a proxy used, so the browser allows the calls.'),
+('Java Full Stack Developer','TECHNICAL','What is dependency injection in Spring Boot?','dependency injection|DI,Inversion of Control|IoC,bean,autowired|annotation,loose coupling|loosely coupled','Dependency injection means the Spring container creates objects, called beans, and supplies them to classes that need them instead of the classes creating them. It is part of Inversion of Control. Annotations such as Autowired or constructor injection wire the beans, which gives loose coupling and easier testing.'),
+('Java Full Stack Developer','TECHNICAL','Explain the Java Collections Framework and the difference between List, Set and Map.','List,Set,Map,duplicates|unique,key|value,ArrayList|HashMap|HashSet','The Collections Framework provides ready-made data structures. A List keeps ordered elements and allows duplicates, for example ArrayList. A Set stores unique elements, for example HashSet. A Map stores key and value pairs, for example HashMap, with unique keys. I choose based on ordering, uniqueness and lookup needs.'),
+('Python Developer','TECHNICAL','What is the difference between a list and a tuple in Python?','mutable|mutability,immutable|immutability,tuple,list,hashable|dictionary key|memory','A list is mutable, so items can be added, removed or changed. A tuple is immutable and cannot change after creation. Because tuples are immutable and hashable they can be dictionary keys and use slightly less memory. For example, I use a tuple for fixed coordinates and a list for a growing collection.'),
+('Python Developer','TECHNICAL','What are decorators in Python and when would you use them?','function,wrapper,decorator,syntax,logging|caching|authentication','A decorator is a function that wraps another function to add behaviour without changing its code. It uses the at-sign syntax above a function definition. Common uses are logging, caching, timing and authentication checks. For example, a timing decorator can measure how long any function takes.'),
+('Python Developer','TECHNICAL','Explain the difference between generators and lists.','yield,lazy|lazily,memory,iterator,generator','A generator produces values lazily using yield, one at a time, so it does not store everything in memory. A list builds all values at once. Generators are good for large or streaming data because they are memory efficient, but they can be iterated only once.'),
+('Python Developer','TECHNICAL','What is the Global Interpreter Lock in Python?','Global Interpreter Lock|GIL,thread|threads,multiprocessing,CPU-bound|CPU bound,I/O-bound|I/O bound','The GIL is a lock in CPython that lets only one thread execute Python bytecode at a time. It limits speedups from threads for CPU-bound work, but threads still help I/O-bound tasks. For CPU-bound work I use multiprocessing to run separate processes.'),
+('Python Developer','TECHNICAL','How does exception handling work in Python?','try,except,finally,raise,specific exception|specific exceptions','Code that may fail goes in a try block. An except block handles specific exceptions, and finally runs cleanup code either way. I can raise my own exceptions. I catch specific exceptions rather than all errors, for example catching ValueError when parsing input.'),
+('Machine Learning Engineer','TECHNICAL','Explain the difference between supervised and unsupervised learning.','supervised,unsupervised,labeled|labelled,clustering,classification|regression','Supervised learning trains on labelled data to predict outputs, as in classification and regression. Unsupervised learning finds structure in unlabelled data, as in clustering. For example, spam detection is supervised, while customer segmentation is unsupervised.'),
+('Machine Learning Engineer','TECHNICAL','What is overfitting and how can you prevent it?','overfitting,training data,generalization|generalisation,regularization|regularisation,cross-validation|validation','Overfitting happens when a model learns noise in the training data and fails to generalise to new data. I prevent it with more data, regularisation, simpler models, early stopping and cross-validation to check performance on unseen data.'),
+('Machine Learning Engineer','TECHNICAL','Explain precision and recall.','precision,recall,false positive|false positives,false negative|false negatives,F1|trade-off|tradeoff','Precision is the share of predicted positives that are truly positive, so it penalises false positives. Recall is the share of actual positives found, so it penalises false negatives. They trade off, and the F1 score combines them. For disease screening I would favour recall.'),
+('Machine Learning Engineer','TECHNICAL','What is the bias-variance tradeoff?','bias,variance,underfitting,overfitting,complexity','Bias is error from overly simple assumptions, causing underfitting. Variance is error from sensitivity to training data, causing overfitting. Increasing model complexity lowers bias but raises variance, so we look for a balance that minimises total error on unseen data.'),
+('Machine Learning Engineer','TECHNICAL','Describe the steps of building a machine learning pipeline.','data collection|data cleaning,feature,training|train,evaluation|evaluate|metrics,deployment|deploy','First collect and clean the data. Then engineer features and split the data. Train a model, evaluate it with suitable metrics on held-out data, and tune it. Finally deploy it and monitor performance over time.'),
+('Data Analyst','TECHNICAL','Explain the different types of SQL joins.','inner,left,right,full|outer,matching','An INNER JOIN returns only matching rows from both tables. A LEFT JOIN returns all rows from the left table plus matches from the right. A RIGHT JOIN does the reverse. A FULL OUTER JOIN returns all rows from both with matches where they exist. For example, a left join lists all customers including those without orders.'),
+('Data Analyst','TECHNICAL','What is the difference between WHERE and HAVING in SQL?','WHERE,HAVING,GROUP BY,aggregate|aggregation,before|after','WHERE filters individual rows before grouping, while HAVING filters groups after GROUP BY, usually using aggregate functions. For example, WHERE selects orders from this year, and HAVING keeps customers whose total spend is above a limit.'),
+('Data Analyst','TECHNICAL','How do you handle missing values in a dataset?','missing values|missing data,remove|drop|delete,impute|imputation|fill,mean|median,context|understand','First I understand why values are missing. Then I either remove rows or columns if the loss is small, or impute values using the mean, median or a model. I choose based on context and document the decision, for example using the median for skewed data.'),
+('Data Analyst','TECHNICAL','When would you use the median instead of the mean?','mean,median,mode,outliers|outlier,skewed|skew','The mean is sensitive to outliers, while the median is not. For skewed data, such as salaries or house prices, the median represents a typical value better. The mode is useful for categorical data.'),
+('Data Analyst','TECHNICAL','How would you explain a dashboard to non-technical stakeholders?','audience|stakeholders,KPI|metrics,visualization|chart,insight|insights,simple|clear','I start with the audience and their decisions, then focus on a few key KPIs. I use clear charts, plain language and highlight insights and actions rather than technical detail. I keep the message simple and invite questions.'),
+('Any','BEHAVIORAL','Tell me about a challenging project and how you approached it.','situation|context,task|goal,action|approach,result|outcome,learned|lesson','In my final-year project the situation was a tight deadline with a new framework. My goal was to deliver a working prototype. I took action by breaking the work into tasks, learning the framework daily and asking mentors for review. The result was an on-time demo, and I learned to plan early.'),
+('Any','BEHAVIORAL','Describe a time you disagreed with a teammate. How did you handle it?','situation|context,listened|listen,perspective,compromise|agreement,result|outcome','In a group project a teammate and I disagreed about the design. I listened to their perspective, shared mine with examples, and we agreed to test both. We chose the better one, and the result was a stronger design and a better working relationship.'),
+('Any','BEHAVIORAL','How do you work under pressure and tight deadlines?','prioritize|prioritise|priority,plan|planning,communicate|communication,example,result|outcome','I prioritise tasks by impact, break work into small steps and communicate early if something is at risk. For example, before a submission deadline I planned daily goals and finished on time with a tested solution.'),
+('Any','BEHAVIORAL','Tell me about a mistake you made and what you learned from it.','mistake,responsibility|ownership,fix|corrected,learned|lesson,prevent','I once submitted code without testing edge cases and it failed in a demo. I took responsibility, fixed it quickly and told the team. I learned to write tests first and now review edge cases to prevent similar mistakes.'),
+('Any','BEHAVIORAL','Why do you want this role, and what are your strengths?','interest|motivation,skills|skill,strengths|strength,example,goal|goals','I want this role because it matches my interest in building real products and my skills in programming and problem solving. My strengths are learning quickly and teamwork, for example when I learned a new framework for a project. My goal is to grow into a reliable engineer.');

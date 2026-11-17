@@ -1,0 +1,9 @@
+target/
+.classpath
+.project
+.settings/
+.idea/
+*.log
+node_modules/
+__pycache__/
+.env
